@@ -75,6 +75,12 @@ function parseAiResponse(content: string): DetectedParams {
   };
 }
 
+/** Newer models (o-series, gpt-4.5+) require max_completion_tokens instead of max_tokens */
+function tokenParam(model: string, n: number): Record<string, number> {
+  const usesNew = /^(o[1-9]|gpt-4\.[1-9]|gpt-4\.5|gpt-5|chatgpt-4o-latest)/.test(model);
+  return usesNew ? { max_completion_tokens: n } : { max_tokens: n };
+}
+
 async function tryAiDetect(image: HTMLImageElement, currentFile: string | null): Promise<DetectedParams | null> {
   const settings = loadSettings();
   if (!settings.openaiApiKey) return null;
@@ -91,7 +97,7 @@ async function tryAiDetect(image: HTMLImageElement, currentFile: string | null):
       },
       body: JSON.stringify({
         model: settings.model,
-        max_tokens: 300,
+        ...tokenParam(settings.model, 300),
         messages: [{
           role: "user",
           content: [

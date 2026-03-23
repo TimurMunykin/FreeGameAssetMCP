@@ -7,7 +7,7 @@ export interface Settings {
 
 const DEFAULTS: Settings = {
   openaiApiKey: "",
-  model: "gpt-4o",
+  model: "gpt-5.4-nano",
 };
 
 export function loadSettings(): Settings {
