@@ -127,7 +127,7 @@ backToSearch.addEventListener("click", () => {
 
 async function openAsset(asset: Asset) {
   currentAsset = asset;
-  navigate(`#asset/${asset.id}`);
+  navigate(`#asset/${encodeURIComponent(asset.id)}`);
   showAssetPanel(asset);
 }
 
@@ -180,7 +180,7 @@ function createFileItem(asset: Asset, file: ContentFile): HTMLElement {
   const el = document.createElement("div");
   el.className = "file-item";
   el.onclick = () => {
-    if (currentAsset) navigate(`#asset/${currentAsset.id}/${file.path}`);
+    if (currentAsset) navigate(`#asset/${encodeURIComponent(currentAsset.id)}/${file.path}`);
     loadSprite(url, el, file.path);
   };
 
@@ -411,7 +411,8 @@ function handleHash() {
 
   const match = hash.match(/^#asset\/([^/]+)(?:\/(.+))?$/);
   if (match) {
-    const [, assetId, filePath] = match;
+    const [, rawAssetId, filePath] = match;
+    const assetId = decodeURIComponent(rawAssetId);
     openAssetById(assetId).then(() => {
       if (filePath) {
         loadSpriteByPath(assetId, filePath);
