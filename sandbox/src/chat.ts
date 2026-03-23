@@ -123,8 +123,10 @@ Typical workflow:
 3. Open the most promising asset pack with open_asset so the user can browse files
 4. Optionally load a specific sprite with load_sprite if the user asks
 
-Prefer open_asset over load_sprite — let the user browse the asset pack themselves. Only use load_sprite if the user asks for a specific file.
-Be concise in your responses. When you find assets, briefly describe what you found.`;
+IMPORTANT RULES:
+- ALWAYS use open_asset to show results — NEVER use load_sprite unless the user explicitly names a specific file.
+- open_asset opens the asset pack in the sidebar so the user can browse all files themselves.
+- Be concise. Briefly describe what you found and open the best match.`;
 
 // --- Callbacks for tool execution ---
 

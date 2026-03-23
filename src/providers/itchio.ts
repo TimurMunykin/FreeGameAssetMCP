@@ -31,6 +31,10 @@ export class ItchioProvider extends BaseProvider {
 
       $(".game_cell").each((_, el) => {
         const $el = $(el);
+
+        // Skip paid assets
+        if ($el.find(".price_value").length > 0) return;
+
         const titleEl = $el.find(".title a, .game_title a").first();
         const title = titleEl.text().trim();
         const href = titleEl.attr("href");
