@@ -75,6 +75,10 @@ export class SpriteRenderer {
     this.render();
   }
 
+  getImage(): HTMLImageElement | null {
+    return this.image;
+  }
+
   setOffset(x: number, y: number) {
     this.offsetX = x;
     this.offsetY = y;

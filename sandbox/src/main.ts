@@ -1,5 +1,6 @@
 import { searchAssets, getContentList, getFileUrl, type Asset, type ContentFile } from "./api";
 import { SpriteRenderer, type Background } from "./renderer";
+import { autoDetect } from "./detect";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -35,6 +36,9 @@ const offsetXInput = $<HTMLInputElement>("#offsetX");
 const offsetYInput = $<HTMLInputElement>("#offsetY");
 const assetLink = $<HTMLAnchorElement>("#assetLink");
 
+const autoDetectBtn = $<HTMLButtonElement>("#autoDetect");
+const detectStatus = $<HTMLSpanElement>("#detectStatus");
+
 const canvas = $<HTMLCanvasElement>("#canvas");
 const renderer = new SpriteRenderer(canvas);
 
@@ -42,6 +46,7 @@ const renderer = new SpriteRenderer(canvas);
 let offset = 0;
 let total = 0;
 let currentAsset: Asset | null = null;
+let currentFilePath: string | null = null;
 
 // --- Search ---
 searchForm.addEventListener("submit", (e) => {
@@ -149,7 +154,7 @@ function createFileItem(asset: Asset, file: ContentFile): HTMLElement {
   const url = getFileUrl(asset.id, file.path);
   const el = document.createElement("div");
   el.className = "file-item";
-  el.onclick = () => loadSprite(url, el);
+  el.onclick = () => loadSprite(url, el, file.path);
 
   const sizeStr = file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`;
   const name = file.path.split("/").pop() || file.path;
@@ -163,7 +168,8 @@ function createFileItem(asset: Asset, file: ContentFile): HTMLElement {
 }
 
 // --- Canvas / renderer ---
-async function loadSprite(url: string, fileEl: HTMLElement) {
+async function loadSprite(url: string, fileEl: HTMLElement, filePath?: string) {
+  currentFilePath = filePath || null;
   // Highlight active
   fileList.querySelectorAll(".file-item").forEach((el) => el.classList.remove("active"));
   fileEl.classList.add("active");
@@ -188,6 +194,47 @@ function updateControlsUI() {
   currentFrameEl.textContent = String(state.currentFrame + 1);
   playPauseBtn.textContent = state.playing ? "Pause" : "Play";
 }
+
+// Auto-detect
+autoDetectBtn.addEventListener("click", async () => {
+  const image = renderer.getImage();
+  if (!image) return;
+
+  autoDetectBtn.disabled = true;
+  detectStatus.textContent = "Analyzing...";
+
+  try {
+    const params = await autoDetect(image, currentAsset, currentFilePath);
+
+    // Apply detected params
+    frameWInput.value = String(params.frameW);
+    frameHInput.value = String(params.frameH);
+    offsetXInput.value = String(params.offsetX);
+    offsetYInput.value = String(params.offsetY);
+    fpsInput.value = String(params.fps);
+
+    renderer.setOffset(params.offsetX, params.offsetY);
+    renderer.setFrameSize(params.frameW, params.frameH);
+    renderer.setFps(params.fps);
+
+    // Switch to spritesheet mode if multiple frames detected
+    const state = renderer.getState();
+    if (state.totalFrames > 1) {
+      modeSelect.value = "spritesheet";
+      renderer.setMode("spritesheet");
+      sheetControls.style.display = "";
+      renderer.play();
+    }
+
+    detectStatus.textContent = params.detail || `${params.source}`;
+    detectStatus.title = params.detail || "";
+    updateControlsUI();
+  } catch (err: any) {
+    detectStatus.textContent = "Failed: " + err.message;
+  } finally {
+    autoDetectBtn.disabled = false;
+  }
+});
 
 // Controls wiring
 modeSelect.addEventListener("change", () => {
