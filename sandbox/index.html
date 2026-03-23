@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sprite Sandbox</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Left panel: search & file list -->
+    <aside id="sidebar">
+      <h1>Sprite Sandbox</h1>
+
+      <section class="panel">
+        <h2>Search</h2>
+        <form id="searchForm">
+          <input type="text" id="searchQuery" placeholder="pixel character walk..." value="pixel art character">
+          <div class="row">
+            <select id="searchSource">
+              <option value="">All</option>
+              <option value="itchio">itch.io</option>
+              <option value="opengameart">OpenGameArt</option>
+              <option value="kenney">Kenney</option>
+            </select>
+            <button type="submit">Search</button>
+          </div>
+        </form>
+        <div id="searchStatus"></div>
+        <div id="searchResults"></div>
+        <button id="loadMore" class="btn-secondary" style="display:none">Load more</button>
+      </section>
+
+      <section class="panel" id="filesPanel" style="display:none">
+        <h2>Files <button class="btn-back" id="backToSearch">&larr; back</button></h2>
+        <div id="assetTitle"></div>
+        <a id="assetLink" href="#" target="_blank" rel="noopener" class="asset-link" style="display:none">Open on source site</a>
+        <div id="fileList"></div>
+      </section>
+    </aside>
+
+    <!-- Main area: canvas + controls -->
+    <main id="main">
+      <div id="canvasWrap">
+        <canvas id="canvas" width="512" height="512"></canvas>
+        <div id="emptyState">
+          <p>Search for sprites on the left, then click an image file to load it here.</p>
+        </div>
+      </div>
+
+      <div id="controls" style="display:none">
+        <div class="control-group">
+          <label>Mode</label>
+          <select id="modeSelect">
+            <option value="static">Static</option>
+            <option value="spritesheet">Spritesheet Animation</option>
+          </select>
+        </div>
+
+        <div id="sheetControls" style="display:none">
+          <div class="control-group">
+            <label>Frame W</label>
+            <input type="number" id="frameW" value="32" min="1">
+          </div>
+          <div class="control-group">
+            <label>Frame H</label>
+            <input type="number" id="frameH" value="32" min="1">
+          </div>
+          <div class="control-group">
+            <label>FPS</label>
+            <input type="number" id="fps" value="10" min="1" max="60">
+          </div>
+          <div class="control-group">
+            <label>Frames</label>
+            <span id="frameCount">0</span>
+          </div>
+          <div class="control-group">
+            <label>Current</label>
+            <span id="currentFrame">0</span>
+          </div>
+          <div class="control-group">
+            <button id="playPause" class="btn-primary">Play</button>
+            <button id="prevFrame" class="btn-secondary">&lt;</button>
+            <button id="nextFrame" class="btn-secondary">&gt;</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Offset X</label>
+          <input type="number" id="offsetX" value="0">
+        </div>
+        <div class="control-group">
+          <label>Offset Y</label>
+          <input type="number" id="offsetY" value="0">
+        </div>
+
+        <div class="control-group">
+          <label>Zoom</label>
+          <input type="range" id="zoom" min="1" max="16" value="4" step="1">
+          <span id="zoomLabel">4x</span>
+        </div>
+
+        <div class="control-group">
+          <label>BG</label>
+          <select id="bgSelect">
+            <option value="checker">Checkerboard</option>
+            <option value="black">Black</option>
+            <option value="white">White</option>
+            <option value="green">Green</option>
+          </select>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

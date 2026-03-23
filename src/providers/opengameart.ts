@@ -33,15 +33,15 @@ export class OpenGameArtProvider extends BaseProvider {
       const $ = cheerio.load(html);
       const assets: Asset[] = [];
 
-      $(".view-opengameart-search .views-row").each((_, el) => {
+      $(".view-content .views-row").each((_, el) => {
         const $el = $(el);
-        const titleEl = $el.find(".art-list-title a, h3 a, .field-content a").first();
+        const titleEl = $el.find(".art-preview-title a, .art-list-title a, h3 a, .field-content a[href^='/content/']").first();
         const title = titleEl.text().trim();
         const href = titleEl.attr("href");
-        if (!title || !href) return;
+        if (!title || !href || !href.startsWith("/content/")) return;
 
         const rawId = href.replace("/content/", "").replace(/^\//, "");
-        const img = $el.find("img").first().attr("src");
+        const img = $el.find(".field-name-field-art-preview img, img").first().attr("src");
 
         assets.push({
           id: this.prefixId(rawId),

@@ -1,0 +1,243 @@
+import { searchAssets, getContentList, getFileUrl, type Asset, type ContentFile } from "./api";
+import { SpriteRenderer, type Background } from "./renderer";
+
+const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+
+// Elements
+const searchForm = $<HTMLFormElement>("#searchForm");
+const searchQuery = $<HTMLInputElement>("#searchQuery");
+const searchSource = $<HTMLSelectElement>("#searchSource");
+const searchStatus = $<HTMLDivElement>("#searchStatus");
+const searchResults = $<HTMLDivElement>("#searchResults");
+const loadMoreBtn = $<HTMLButtonElement>("#loadMore");
+const filesPanel = $<HTMLElement>("#filesPanel");
+const assetTitle = $<HTMLDivElement>("#assetTitle");
+const fileList = $<HTMLDivElement>("#fileList");
+const backToSearch = $<HTMLButtonElement>("#backToSearch");
+const emptyState = $<HTMLDivElement>("#emptyState");
+const controls = $<HTMLDivElement>("#controls");
+
+const modeSelect = $<HTMLSelectElement>("#modeSelect");
+const sheetControls = $<HTMLDivElement>("#sheetControls");
+const frameWInput = $<HTMLInputElement>("#frameW");
+const frameHInput = $<HTMLInputElement>("#frameH");
+const fpsInput = $<HTMLInputElement>("#fps");
+const frameCountEl = $<HTMLSpanElement>("#frameCount");
+const currentFrameEl = $<HTMLSpanElement>("#currentFrame");
+const playPauseBtn = $<HTMLButtonElement>("#playPause");
+const prevFrameBtn = $<HTMLButtonElement>("#prevFrame");
+const nextFrameBtn = $<HTMLButtonElement>("#nextFrame");
+const zoomInput = $<HTMLInputElement>("#zoom");
+const zoomLabel = $<HTMLSpanElement>("#zoomLabel");
+const bgSelect = $<HTMLSelectElement>("#bgSelect");
+
+const offsetXInput = $<HTMLInputElement>("#offsetX");
+const offsetYInput = $<HTMLInputElement>("#offsetY");
+const assetLink = $<HTMLAnchorElement>("#assetLink");
+
+const canvas = $<HTMLCanvasElement>("#canvas");
+const renderer = new SpriteRenderer(canvas);
+
+// State
+let offset = 0;
+let total = 0;
+let currentAsset: Asset | null = null;
+
+// --- Search ---
+searchForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  offset = 0;
+  searchResults.innerHTML = "";
+  doSearch();
+});
+
+loadMoreBtn.addEventListener("click", () => doSearch(true));
+
+async function doSearch(append = false) {
+  const query = searchQuery.value.trim();
+  if (!query) return;
+
+  searchStatus.textContent = append ? "Loading more..." : "Searching...";
+  loadMoreBtn.style.display = "none";
+
+  try {
+    const result = await searchAssets(query, {
+      source: searchSource.value || undefined,
+      type: "sprite",
+      limit: 20,
+      offset,
+    });
+    total = result.total;
+    offset += result.assets.length;
+
+    if (!append && result.assets.length === 0) {
+      searchStatus.textContent = "No results found.";
+      return;
+    }
+
+    searchStatus.textContent = `${offset} of ~${total} results`;
+    loadMoreBtn.style.display = offset < total ? "block" : "none";
+
+    for (const asset of result.assets) {
+      searchResults.appendChild(createResultItem(asset));
+    }
+  } catch (err: any) {
+    searchStatus.textContent = "Error: " + err.message;
+  }
+}
+
+function createResultItem(asset: Asset): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "result-item";
+  el.onclick = () => openAsset(asset);
+
+  el.innerHTML = `
+    <div class="result-thumb">
+      ${asset.previewUrl ? `<img src="${esc(asset.previewUrl)}" loading="lazy" alt="">` : ""}
+    </div>
+    <div class="result-info">
+      <h4 title="${esc(asset.title)}">${esc(asset.title)}</h4>
+      <div class="result-meta">
+        <span class="result-badge">${esc(asset.source)}</span>
+        <span class="result-badge">${esc(asset.license)}</span>
+        ${asset.author ? esc(asset.author) : ""}
+      </div>
+    </div>
+  `;
+  return el;
+}
+
+// --- Asset files ---
+backToSearch.addEventListener("click", () => {
+  filesPanel.style.display = "none";
+  $<HTMLElement>(".panel:first-of-type")!.style.display = "";
+});
+
+async function openAsset(asset: Asset) {
+  currentAsset = asset;
+  assetTitle.textContent = asset.title;
+  assetLink.href = asset.pageUrl;
+  assetLink.textContent = `Open on ${asset.source}`;
+  assetLink.style.display = "";
+  fileList.innerHTML = '<div style="color:#666;font-size:12px">Loading files...</div>';
+
+  // Switch to files panel
+  $<HTMLElement>(".panel:first-of-type")!.style.display = "none";
+  filesPanel.style.display = "";
+
+  try {
+    const content = await getContentList(asset.id);
+    const imageFiles = content.files.filter((f) =>
+      /\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i.test(f.path),
+    );
+
+    if (imageFiles.length === 0) {
+      fileList.innerHTML = '<div style="color:#666;font-size:12px">No image files found.</div>';
+      return;
+    }
+
+    fileList.innerHTML = "";
+    for (const file of imageFiles) {
+      fileList.appendChild(createFileItem(asset, file));
+    }
+  } catch (err: any) {
+    fileList.innerHTML = `<div style="color:#f66;font-size:12px">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+function createFileItem(asset: Asset, file: ContentFile): HTMLElement {
+  const url = getFileUrl(asset.id, file.path);
+  const el = document.createElement("div");
+  el.className = "file-item";
+  el.onclick = () => loadSprite(url, el);
+
+  const sizeStr = file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`;
+  const name = file.path.split("/").pop() || file.path;
+
+  el.innerHTML = `
+    <div class="file-icon"><img src="${esc(url)}" loading="lazy" alt=""></div>
+    <span class="file-name" title="${esc(file.path)}">${esc(name)}</span>
+    <span class="file-size">${sizeStr}</span>
+  `;
+  return el;
+}
+
+// --- Canvas / renderer ---
+async function loadSprite(url: string, fileEl: HTMLElement) {
+  // Highlight active
+  fileList.querySelectorAll(".file-item").forEach((el) => el.classList.remove("active"));
+  fileEl.classList.add("active");
+
+  emptyState.style.display = "none";
+  controls.style.display = "";
+
+  try {
+    await renderer.loadImage(url);
+    updateControlsUI();
+  } catch (err: any) {
+    emptyState.style.display = "";
+    emptyState.textContent = "Failed to load: " + err.message;
+  }
+}
+
+renderer.onChange = () => updateControlsUI();
+
+function updateControlsUI() {
+  const state = renderer.getState();
+  frameCountEl.textContent = String(state.totalFrames);
+  currentFrameEl.textContent = String(state.currentFrame + 1);
+  playPauseBtn.textContent = state.playing ? "Pause" : "Play";
+}
+
+// Controls wiring
+modeSelect.addEventListener("change", () => {
+  const mode = modeSelect.value as "static" | "spritesheet";
+  renderer.setMode(mode);
+  sheetControls.style.display = mode === "spritesheet" ? "" : "none";
+  updateControlsUI();
+});
+
+frameWInput.addEventListener("change", () => {
+  renderer.setFrameSize(Number(frameWInput.value), Number(frameHInput.value));
+  updateControlsUI();
+});
+frameHInput.addEventListener("change", () => {
+  renderer.setFrameSize(Number(frameWInput.value), Number(frameHInput.value));
+  updateControlsUI();
+});
+fpsInput.addEventListener("change", () => {
+  renderer.setFps(Number(fpsInput.value));
+});
+
+playPauseBtn.addEventListener("click", () => {
+  renderer.togglePlay();
+  updateControlsUI();
+});
+prevFrameBtn.addEventListener("click", () => renderer.prevFrame());
+nextFrameBtn.addEventListener("click", () => renderer.nextFrame());
+
+offsetXInput.addEventListener("change", () => {
+  renderer.setOffset(Number(offsetXInput.value), Number(offsetYInput.value));
+  updateControlsUI();
+});
+offsetYInput.addEventListener("change", () => {
+  renderer.setOffset(Number(offsetXInput.value), Number(offsetYInput.value));
+  updateControlsUI();
+});
+
+zoomInput.addEventListener("input", () => {
+  const z = Number(zoomInput.value);
+  zoomLabel.textContent = z + "x";
+  renderer.setZoom(z);
+});
+
+bgSelect.addEventListener("change", () => {
+  renderer.setBg(bgSelect.value as Background);
+});
+
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Auto-search on load
+doSearch();

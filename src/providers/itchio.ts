@@ -20,8 +20,10 @@ export class ItchioProvider extends BaseProvider {
     if (cached) return cached;
 
     try {
-      const typeTag = params.type ? this.mapTypeTag(params.type) : "";
-      const url = `${this.baseUrl}/game-assets/free${typeTag}?q=${encodeURIComponent(params.query)}&page=${Math.floor(params.offset / params.limit) + 1}`;
+      // Cloudflare blocks /tag-* URLs, so append the type keyword to the query instead
+      const typeKeyword = params.type ? this.typeToKeyword(params.type) : "";
+      const fullQuery = typeKeyword ? `${params.query} ${typeKeyword}` : params.query;
+      const url = `${this.baseUrl}/game-assets/free?q=${encodeURIComponent(fullQuery)}&page=${Math.floor(params.offset / params.limit) + 1}`;
 
       const html = await this.fetchHtml(url);
       const $ = cheerio.load(html);
@@ -183,15 +185,15 @@ export class ItchioProvider extends BaseProvider {
     }
   }
 
-  private mapTypeTag(type: AssetType): string {
+  private typeToKeyword(type: AssetType): string {
     const map: Record<string, string> = {
-      sprite: "/tag-sprites",
-      "3d_model": "/tag-3d",
-      sound: "/tag-sound-effects",
-      music: "/tag-music",
-      tilemap: "/tag-tilemap",
-      texture: "/tag-textures",
-      font: "/tag-fonts",
+      sprite: "sprites",
+      "3d_model": "3d",
+      sound: "sound effects",
+      music: "music",
+      tilemap: "tilemap",
+      texture: "textures",
+      font: "fonts",
     };
     return map[type] || "";
   }
