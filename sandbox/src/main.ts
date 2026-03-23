@@ -195,6 +195,29 @@ function createFileItem(asset: Asset, file: ContentFile): HTMLElement {
   return el;
 }
 
+/** Load a sprite by path — finds its element in the file list and highlights it */
+function loadSpriteByPath(assetId: string, filePath: string) {
+  const url = getFileUrl(assetId, filePath);
+  currentFilePath = filePath;
+
+  // Find and highlight the matching file item
+  const items = fileList.querySelectorAll<HTMLElement>(".file-item");
+  let matched: HTMLElement | null = null;
+  items.forEach((el) => {
+    const title = el.querySelector(".file-name")?.getAttribute("title");
+    if (title === filePath) matched = el;
+  });
+
+  if (matched) {
+    loadSprite(url, matched, filePath);
+  } else {
+    // File list might not have it — just load directly
+    emptyState.style.display = "none";
+    controls.style.display = "";
+    renderer.loadImage(url).then(() => updateControlsUI());
+  }
+}
+
 // --- Canvas / renderer ---
 async function loadSprite(url: string, fileEl: HTMLElement, filePath?: string) {
   currentFilePath = filePath || null;
@@ -391,12 +414,7 @@ function handleHash() {
     const [, assetId, filePath] = match;
     openAssetById(assetId).then(() => {
       if (filePath) {
-        // Auto-load the specific file
-        const url = getFileUrl(assetId, filePath);
-        currentFilePath = filePath;
-        emptyState.style.display = "none";
-        controls.style.display = "";
-        renderer.loadImage(url).then(() => updateControlsUI());
+        loadSpriteByPath(assetId, filePath);
       }
     });
   }
