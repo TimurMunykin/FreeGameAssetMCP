@@ -1,4 +1,5 @@
 import { getContentList, getFileUrl, type Asset, type ContentFile } from "./api";
+import { loadSettings } from "./settings";
 
 export interface DetectedParams {
   frameW: number;
@@ -33,39 +34,81 @@ export async function autoDetect(
 
 // --- 1. AI vision detection ---
 
-async function tryAiDetect(image: HTMLImageElement, currentFile: string | null): Promise<DetectedParams | null> {
-  try {
-    const canvas = new OffscreenCanvas(image.naturalWidth, image.naturalHeight);
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(image, 0, 0);
-    const blob = await canvas.convertToBlob({ type: "image/png" });
-    const buffer = await blob.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+const AI_PROMPT = `You are a sprite sheet analyzer. You receive an image of a game sprite sheet.
 
-    const res = await fetch("/api/v1/ai/detect-spritesheet", {
+Analyze the image and determine the animation frame parameters:
+- frameW: width of a single frame in pixels
+- frameH: height of a single frame in pixels
+- offsetX: x pixel offset where the first frame starts (usually 0)
+- offsetY: y pixel offset where the first frame starts (usually 0)
+- fps: recommended playback speed (frames per second)
+
+The image dimensions are provided. Look for:
+- Grid patterns of repeating character poses / animation frames
+- Transparency gaps between frames
+- Consistent frame sizes across the sheet
+- Whether it's a horizontal strip, vertical strip, or grid
+
+Respond with ONLY a JSON object, no markdown, no explanation:
+{"frameW": N, "frameH": N, "offsetX": N, "offsetY": N, "fps": N, "detail": "brief description"}`;
+
+async function imageToBase64(image: HTMLImageElement): Promise<string> {
+  const canvas = new OffscreenCanvas(image.naturalWidth, image.naturalHeight);
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, 0, 0);
+  const blob = await canvas.convertToBlob({ type: "image/png" });
+  const buffer = await blob.arrayBuffer();
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+function parseAiResponse(content: string): DetectedParams {
+  const jsonStr = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+  const parsed = JSON.parse(jsonStr);
+  return {
+    frameW: Number(parsed.frameW) || 32,
+    frameH: Number(parsed.frameH) || 32,
+    offsetX: Number(parsed.offsetX) || 0,
+    offsetY: Number(parsed.offsetY) || 0,
+    fps: Number(parsed.fps) || 10,
+    source: "ai",
+    detail: parsed.detail || "AI detected",
+  };
+}
+
+async function tryAiDetect(image: HTMLImageElement, currentFile: string | null): Promise<DetectedParams | null> {
+  const settings = loadSettings();
+  if (!settings.openaiApiKey) return null;
+
+  try {
+    const base64 = await imageToBase64(image);
+    const userText = `${AI_PROMPT}\n\nImage dimensions: ${image.naturalWidth}x${image.naturalHeight} pixels${currentFile ? `, filename: ${currentFile.split("/").pop()}` : ""}`;
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${settings.openaiApiKey}`,
+      },
       body: JSON.stringify({
-        imageBase64: base64,
-        mimeType: "image/png",
-        fileName: currentFile?.split("/").pop() || undefined,
-        imageWidth: image.naturalWidth,
-        imageHeight: image.naturalHeight,
+        model: settings.model,
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: userText },
+            { type: "image_url", image_url: { url: `data:image/png;base64,${base64}`, detail: "high" } },
+          ],
+        }],
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`OpenAI ${res.status}: ${err}`);
+    }
 
-    const data = await res.json();
-    return {
-      frameW: data.frameW,
-      frameH: data.frameH,
-      offsetX: data.offsetX,
-      offsetY: data.offsetY,
-      fps: data.fps,
-      source: "ai",
-      detail: data.detail,
-    };
+    const data = await res.json() as any;
+    return parseAiResponse(data.choices?.[0]?.message?.content || "");
   } catch {
     return null;
   }

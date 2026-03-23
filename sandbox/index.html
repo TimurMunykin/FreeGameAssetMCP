@@ -10,7 +10,10 @@
   <div id="app">
     <!-- Left panel: search & file list -->
     <aside id="sidebar">
-      <h1>Sprite Sandbox</h1>
+      <div class="sidebar-header">
+        <h1>Sprite Sandbox</h1>
+        <button id="settingsBtn" class="btn-icon" title="Settings">&#9881;</button>
+      </div>
 
       <section class="panel">
         <h2>Search</h2>
@@ -116,6 +119,54 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="close-btn" id="settingsClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label for="settingApiKey">OpenAI API Key</label>
+          <input type="password" id="settingApiKey" placeholder="sk-...">
+          <span class="setting-hint">Stored in browser localStorage only. Used for AI sprite detection.</span>
+        </div>
+        <div class="setting-group">
+          <label for="settingModel">Model</label>
+          <select id="settingModel">
+            <optgroup label="GPT-5.4 (latest)">
+              <option value="gpt-5.4">GPT-5.4</option>
+              <option value="gpt-5.4-mini">GPT-5.4 mini</option>
+              <option value="gpt-5.4-nano">GPT-5.4 nano</option>
+            </optgroup>
+            <optgroup label="GPT-5.2">
+              <option value="gpt-5.2">GPT-5.2</option>
+            </optgroup>
+            <optgroup label="GPT-4.1">
+              <option value="gpt-4.1">GPT-4.1</option>
+              <option value="gpt-4.1-mini">GPT-4.1 mini</option>
+              <option value="gpt-4.1-nano">GPT-4.1 nano</option>
+            </optgroup>
+            <optgroup label="GPT-4o">
+              <option value="gpt-4o" selected>GPT-4o</option>
+              <option value="gpt-4o-mini">GPT-4o mini</option>
+            </optgroup>
+            <optgroup label="o-series (reasoning)">
+              <option value="o4-mini">o4-mini</option>
+              <option value="o3">o3</option>
+              <option value="o3-mini">o3-mini</option>
+            </optgroup>
+          </select>
+          <span class="setting-hint">All models support vision. Newer models are more accurate but may cost more.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="settingsSave" class="btn-primary">Save</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>

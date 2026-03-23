@@ -1,6 +1,7 @@
 import { searchAssets, getContentList, getFileUrl, type Asset, type ContentFile } from "./api";
 import { SpriteRenderer, type Background } from "./renderer";
 import { autoDetect } from "./detect";
+import { initSettingsUI } from "./settings";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -286,5 +287,6 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Auto-search on load
+// Init
+initSettingsUI();
 doSearch();
