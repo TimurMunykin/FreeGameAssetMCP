@@ -5,6 +5,8 @@ services:
       - "3000:3000"
     env_file: .env
     restart: unless-stopped
+    profiles:
+      - prod
 
   sandbox:
     build: ./sandbox
@@ -13,6 +15,8 @@ services:
     depends_on:
       - app
     restart: unless-stopped
+    profiles:
+      - prod
 
   dev:
     build:
