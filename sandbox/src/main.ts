@@ -2,6 +2,7 @@ import { searchAssets, getContentList, getFileUrl, type Asset, type ContentFile 
 import { SpriteRenderer, type Background } from "./renderer";
 import { autoDetect } from "./detect";
 import { initSettingsUI } from "./settings";
+import { ChatEngine, initChatUI } from "./chat";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -286,6 +287,63 @@ bgSelect.addEventListener("change", () => {
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+
+// --- Chat ---
+const chatEngine = new ChatEngine(
+  {
+    onLoadSprite: async (assetId, filePath, asset) => {
+      currentAsset = asset;
+      currentFilePath = filePath;
+      const url = getFileUrl(assetId, filePath);
+      emptyState.style.display = "none";
+      controls.style.display = "";
+      await renderer.loadImage(url);
+      updateControlsUI();
+    },
+    onConfigureAnimation: (params) => {
+      frameWInput.value = String(params.frameW);
+      frameHInput.value = String(params.frameH);
+      fpsInput.value = String(params.fps);
+      offsetXInput.value = String(params.offsetX);
+      offsetYInput.value = String(params.offsetY);
+      renderer.setOffset(params.offsetX, params.offsetY);
+      renderer.setFrameSize(params.frameW, params.frameH);
+      renderer.setFps(params.fps);
+      const state = renderer.getState();
+      if (state.totalFrames > 1) {
+        modeSelect.value = "spritesheet";
+        renderer.setMode("spritesheet");
+        sheetControls.style.display = "";
+        renderer.play();
+      }
+      updateControlsUI();
+    },
+    onAutoDetect: async () => {
+      const image = renderer.getImage();
+      if (!image) return "No image loaded in viewer.";
+      const params = await autoDetect(image, currentAsset, currentFilePath);
+      frameWInput.value = String(params.frameW);
+      frameHInput.value = String(params.frameH);
+      offsetXInput.value = String(params.offsetX);
+      offsetYInput.value = String(params.offsetY);
+      fpsInput.value = String(params.fps);
+      renderer.setOffset(params.offsetX, params.offsetY);
+      renderer.setFrameSize(params.frameW, params.frameH);
+      renderer.setFps(params.fps);
+      const state = renderer.getState();
+      if (state.totalFrames > 1) {
+        modeSelect.value = "spritesheet";
+        renderer.setMode("spritesheet");
+        sheetControls.style.display = "";
+        renderer.play();
+      }
+      updateControlsUI();
+      return `Detected: ${params.frameW}x${params.frameH} @ ${params.fps}fps (${params.source}). ${params.detail || ""}`;
+    },
+  },
+  () => {},
+);
+initChatUI(chatEngine);
 
 // Init
 initSettingsUI();

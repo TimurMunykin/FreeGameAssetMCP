@@ -118,6 +118,19 @@
     </main>
   </div>
 
+  <!-- Chat panel -->
+  <div id="chatPanel" class="chat-panel">
+    <div class="chat-header">
+      <span>AI Assistant</span>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <form id="chatForm" class="chat-form">
+      <input type="text" id="chatInput" placeholder="Find me a pixel knight with run animation..." autocomplete="off">
+      <button type="submit">Send</button>
+    </form>
+  </div>
+  <button id="chatToggle" class="chat-toggle" title="AI Chat">&#128172;</button>
+
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
