@@ -1,0 +1,21 @@
+services:
+  app:
+    image: timurmunykin/freegameassetmcp-app:latest
+    restart: unless-stopped
+    networks:
+      - default
+
+  sandbox:
+    image: timurmunykin/freegameassetmcp-sandbox:latest
+    environment:
+      - API_URL=http://app:3000
+    restart: unless-stopped
+    depends_on:
+      - app
+    networks:
+      - default
+      - muntim_gateway
+
+networks:
+  muntim_gateway:
+    external: true
