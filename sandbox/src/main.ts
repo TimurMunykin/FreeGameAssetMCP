@@ -94,6 +94,7 @@ async function doSearch(append = false) {
 }
 
 function createResultItem(asset: Asset): HTMLElement {
+  assetsById.set(asset.id, asset);
   const el = document.createElement("div");
   el.className = "result-item";
   el.onclick = () => openAsset(asset);
@@ -114,18 +115,40 @@ function createResultItem(asset: Asset): HTMLElement {
   return el;
 }
 
+// --- Routing ---
+function navigate(hash: string) {
+  if (location.hash !== hash) location.hash = hash;
+}
+
 // --- Asset files ---
 backToSearch.addEventListener("click", () => {
-  filesPanel.style.display = "none";
-  $<HTMLElement>(".panel:first-of-type")!.style.display = "";
+  navigate("");
 });
 
 async function openAsset(asset: Asset) {
   currentAsset = asset;
+  navigate(`#asset/${asset.id}`);
+  showAssetPanel(asset);
+}
+
+async function openAssetById(assetId: string) {
+  // Check if we already have it cached
+  let asset = assetsById.get(assetId);
+  if (!asset) {
+    // Fetch from search results or create a minimal stub via content list
+    asset = { id: assetId, source: "", title: assetId, type: "sprite", tags: [], license: "", pageUrl: "" } as Asset;
+  }
+  currentAsset = asset;
+  showAssetPanel(asset);
+}
+
+const assetsById = new Map<string, Asset>();
+
+async function showAssetPanel(asset: Asset) {
   assetTitle.textContent = asset.title;
   assetLink.href = asset.pageUrl;
-  assetLink.textContent = `Open on ${asset.source}`;
-  assetLink.style.display = "";
+  assetLink.textContent = asset.pageUrl ? `Open on ${asset.source}` : "";
+  assetLink.style.display = asset.pageUrl ? "" : "none";
   fileList.innerHTML = '<div style="color:#666;font-size:12px">Loading files...</div>';
 
   // Switch to files panel
@@ -156,7 +179,10 @@ function createFileItem(asset: Asset, file: ContentFile): HTMLElement {
   const url = getFileUrl(asset.id, file.path);
   const el = document.createElement("div");
   el.className = "file-item";
-  el.onclick = () => loadSprite(url, el, file.path);
+  el.onclick = () => {
+    if (currentAsset) navigate(`#asset/${currentAsset.id}/${file.path}`);
+    loadSprite(url, el, file.path);
+  };
 
   const sizeStr = file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`;
   const name = file.path.split("/").pop() || file.path;
@@ -291,6 +317,11 @@ function esc(s: string): string {
 // --- Chat ---
 const chatEngine = new ChatEngine(
   {
+    onOpenAsset: (assetId, asset) => {
+      assetsById.set(assetId, asset);
+      navigate(`#asset/${assetId}`);
+      openAssetById(assetId);
+    },
     onLoadSprite: async (assetId, filePath, asset) => {
       currentAsset = asset;
       currentFilePath = filePath;
@@ -345,6 +376,38 @@ const chatEngine = new ChatEngine(
 );
 initChatUI(chatEngine);
 
+// --- Hash routing ---
+function handleHash() {
+  const hash = location.hash;
+  if (!hash || hash === "#") {
+    // Show search panel
+    filesPanel.style.display = "none";
+    $<HTMLElement>(".panel:first-of-type")!.style.display = "";
+    return;
+  }
+
+  const match = hash.match(/^#asset\/([^/]+)(?:\/(.+))?$/);
+  if (match) {
+    const [, assetId, filePath] = match;
+    openAssetById(assetId).then(() => {
+      if (filePath) {
+        // Auto-load the specific file
+        const url = getFileUrl(assetId, filePath);
+        currentFilePath = filePath;
+        emptyState.style.display = "none";
+        controls.style.display = "";
+        renderer.loadImage(url).then(() => updateControlsUI());
+      }
+    });
+  }
+}
+
+window.addEventListener("hashchange", handleHash);
+
 // Init
 initSettingsUI();
-doSearch();
+if (location.hash && location.hash !== "#") {
+  handleHash();
+} else {
+  doSearch();
+}

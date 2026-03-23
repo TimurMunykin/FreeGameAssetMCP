@@ -50,8 +50,22 @@ const tools = [
   {
     type: "function" as const,
     function: {
+      name: "open_asset",
+      description: "Open an asset pack in the sidebar so the user can browse all its files. This navigates the app to the asset view.",
+      parameters: {
+        type: "object",
+        properties: {
+          asset_id: { type: "string", description: "The asset ID from search results" },
+        },
+        required: ["asset_id"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "load_sprite",
-      description: "Load a specific sprite file into the canvas viewer for the user to see. Use this when you've found a good asset file.",
+      description: "Load a specific sprite file into the canvas viewer. Use open_asset first to let the user browse, or this to load a specific file directly.",
       parameters: {
         type: "object",
         properties: {
@@ -98,22 +112,24 @@ const SYSTEM_PROMPT = `You are a helpful game asset assistant inside a sprite sa
 You have access to these tools:
 - search_assets: Search for assets on itch.io
 - get_asset_files: List image files in an asset package
-- load_sprite: Load a sprite into the canvas viewer
+- open_asset: Open an asset pack in the sidebar so the user can browse its files
+- load_sprite: Load a specific sprite file into the canvas viewer
 - configure_animation: Set up spritesheet animation (frame size, fps, offset)
 - auto_detect: Auto-detect spritesheet parameters using AI vision
 
 Typical workflow:
 1. User describes what they need
 2. You search for matching assets
-3. Browse the files in promising results
-4. Load the best matching sprite file
-5. Run auto_detect or configure_animation to set it up
+3. Open the most promising asset pack with open_asset so the user can browse files
+4. Optionally load a specific sprite with load_sprite if the user asks
 
-Be concise in your responses. When you find assets, briefly describe what you found and load the most relevant one. If the user isn't happy, offer alternatives.`;
+Prefer open_asset over load_sprite — let the user browse the asset pack themselves. Only use load_sprite if the user asks for a specific file.
+Be concise in your responses. When you find assets, briefly describe what you found.`;
 
 // --- Callbacks for tool execution ---
 
 export interface ChatCallbacks {
+  onOpenAsset: (assetId: string, asset: Asset) => void;
   onLoadSprite: (assetId: string, filePath: string, asset: Asset) => Promise<void>;
   onConfigureAnimation: (params: { frameW: number; frameH: number; fps: number; offsetX: number; offsetY: number }) => void;
   onAutoDetect: () => Promise<string>;
@@ -236,6 +252,15 @@ export class ChatEngine {
               url: getFileUrl(args.asset_id, f.path),
             })),
           });
+        }
+
+        case "open_asset": {
+          const asset = this.assetsCache.get(args.asset_id);
+          if (asset) {
+            this.callbacks.onOpenAsset(args.asset_id, asset);
+            return `Opened asset pack "${asset.title}" in the sidebar. The user can now browse its files.`;
+          }
+          return "Asset not found in cache. Search for it first.";
         }
 
         case "load_sprite": {
