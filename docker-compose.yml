@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env
+    restart: unless-stopped
+
+  dev:
+    build:
+      context: .
+      target: builder
+    volumes:
+      - ./src:/app/src
+    ports:
+      - "3000:3000"
+    env_file: .env
+    command: npx tsx watch src/index.ts
